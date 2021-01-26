@@ -147,3 +147,79 @@ def profile_view(request,slug):
     }
 
     return render(request,"users/profile.html",context)
+
+def register(request):
+    if request.method == "POST":
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            form.save()
+            username = form.cleaned_data.get('username')
+            messages.success(request,'Your account has been created! You can now login!')
+            return redirect('login')
+
+    else:
+        form = UserRegisterForm()
+
+    return render(request,'users/register.html',{'form':form})
+
+@login_required
+def edit_profile(request):
+    if request.method == "POST":
+        u_form = UserUpdateForm(request.POST,instance=reequest.user)
+        p_form = ProfileUpdateForm(request.POST,request.FILES, instance=request.user.profile)
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            messages.success(request,"Your account has been updated!")
+            return redirect("my_profile")
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = ProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'u_form':u_form,
+        'p_form':p_form
+    }
+    return render(request,'users/edit_profile.html',context)
+
+@login_required
+def my_profile(request):
+    profile = request.user.profile
+    you = profile.user
+    sent_friend_requests = FriendRequest.objects.filter(from_user=you)
+    rec_friend_requests = FriendRequest.objects.filter(to_user=you)
+    user_posts= Post,objects.filter(user_name=you)
+    friends = p.friends.all()
+
+    # Es el usuario tu amigo
+    button_status='none'
+    if profile not in request.user.profile.friends.all():
+        button_status = 'not_friend'
+
+        # Si hemos enviado nosotros la solicitud
+        if len(FriendRequest.objects.filter(from_user=request.user).filter(to_user=you))==1:
+            button_status='friend_request_sent'
+
+        if len(FriendRequest.objects.filter(from_user=profile.user).filter(to_user=request.user))==1:
+            button_status = 'friend_request_received'
+
+    context={
+        'u':you,
+        'button_status':button_status,
+        'friend_list':friends,
+        'sent_friend_requests':sent_friend_requests,
+        'rec_friend_requests':rec_friend_requests,
+        'post_count':user_posts.count
+    }
+
+    return render(request,"users/profile.html",context)
+
+
+@login_required
+def search_users(request):
+    query = request.GET.get('q')
+    object_list = User.objects.filter(username__icontains=query)
+    context = {
+        'users':object_list
+    }
+    return render(request,"users/search_users.html",context)
